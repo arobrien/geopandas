@@ -5,13 +5,13 @@ import shutil
 
 from shapely.geometry import Point
 
+import unittest
 from geopandas import GeoDataFrame, read_file
-from geopandas.tests.util import unittest, download_nybb
 from geopandas import overlay
 from geopandas import datasets
 
 # Load qgis overlays
-qgispath = datasets.module_path+'/polys/'
+qgispath = datasets._module_path+'/polys/'
 union_qgis = read_file(qgispath+'qgis_union.shp')
 diff_qgis = read_file(qgispath+'qgis_diff.shp')
 symdiff_qgis = read_file(qgispath+'qgis_symdif.shp')

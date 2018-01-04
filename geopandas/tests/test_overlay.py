@@ -1,24 +1,23 @@
 from __future__ import absolute_import
 
-import tempfile
-import shutil
-
 from shapely.geometry import Point
 
+import unittest
+import tempfile
+import pytest
 from geopandas import GeoDataFrame, read_file
-from geopandas.tests.util import unittest, download_nybb
 from geopandas import overlay
 from geopandas import datasets
 
 # Load qgis overlays
-qgispath = datasets.module_path+'/qgis_overlay/'
+qgispath = datasets._module_path+'/qgis_overlay/'
+outputpath = qgispath + 'out/'
+
 union_qgis = read_file(qgispath+'union_qgis.shp')
 diff_qgis = read_file(qgispath+'diff_qgis.shp')
 symdiff_qgis = read_file(qgispath+'symdiff_qgis.shp')
 intersect_qgis = read_file(qgispath+'intersect_qgis.shp')
 ident_qgis = union_qgis[union_qgis.BoroCode.isnull()==False].copy()
-df1 = read_file(qgispath+'polydf.shp')
-df2 = read_file(qgispath+'polydf2.shp')
 # Eliminate observations without geometries (issue from QGIS)
 union_qgis = union_qgis[union_qgis.is_valid]
 union_qgis.reset_index(inplace=True, drop=True)
@@ -47,8 +46,8 @@ class TestDataFrame(unittest.TestCase):
     def setUp(self):
         # Create original data again
         N = 10
-        nybb_filename, nybb_zip_path = download_nybb()
-        self.polydf = read_file(nybb_zip_path, vfs='zip://' + nybb_filename)
+        nybb_filename = datasets.get_path('nybb')
+        self.polydf = read_file(nybb_filename)
         self.tempdir = tempfile.mkdtemp()
         self.crs = {'init': 'epsg:4326'}
         b = [int(x) for x in self.polydf.total_bounds]
@@ -66,9 +65,6 @@ class TestDataFrame(unittest.TestCase):
         #self.polydf2._generate_sindex()
 
         self.union_shape = union_qgis.shape
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
 
     def test_union(self):
         df = overlay(self.polydf, self.polydf2, how="union")
@@ -121,12 +117,12 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue((df.boundary.length/diff_qgis.boundary.length).mean()==1)
 
     def test_bad_how(self):
-        self.assertRaises(ValueError,
-                          overlay, self.polydf, self.polydf, how="spandex")
+        with pytest.raises(ValueError):
+            overlay(self.polydf, self.polydf, how="spandex")
 
     def test_nonpoly(self):
-        self.assertRaises(TypeError,
-                          overlay, self.pointdf, self.polydf, how="union")
+        with pytest.raises(TypeError):
+            overlay(self.pointdf, self.polydf, how="union")
 
     def test_duplicate_column_name(self):
         polydf2r = self.polydf2.rename(columns={'value2': 'Shape_Area'})
@@ -137,24 +133,18 @@ class TestDataFrame(unittest.TestCase):
         # Issue #306
         # Add points and flip names
         polydf3 = self.polydf.copy()
-        polydf3 = polydf3.rename(columns={'geometry':'polygons'})
+        polydf3 = polydf3.rename(columns={'geometry': 'polygons'})
         polydf3 = polydf3.set_geometry('polygons')
         polydf3['geometry'] = self.pointdf.geometry.loc[0:4]
-        self.assertTrue(polydf3.geometry.name == 'polygons')
+        assert polydf3.geometry.name == 'polygons'
 
         df = overlay(polydf3, self.polydf2, how="union")
-        self.assertTrue(type(df) is GeoDataFrame)
-        
+        assert type(df) is GeoDataFrame
+
         df2 = overlay(self.polydf, self.polydf2, how="union")
-        self.assertTrue(df.geom_almost_equals(df2).all())
+        assert df.geom_almost_equals(df2).all()
 
     def test_geoseries_warning(self):
         # Issue #305
         def f():
             overlay(self.polydf, self.polydf2.geometry, how="union")
-        self.assertRaises(NotImplementedError, f)
-
-
-
-
-
