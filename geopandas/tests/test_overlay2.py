@@ -61,8 +61,8 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(df) is GeoDataFrame)
         self.assertEqual(df.shape, union_qgis.shape)
         self.assertTrue('df2' in df.columns and 'df1' in df.columns)
-        self.assertTrue((df.area/union_qgis.area).mean()==1)
-        self.assertTrue((df.boundary.length/union_qgis.boundary.length).mean()==1)
+        self.assertEqual((df.area/union_qgis.area).mean(),1)
+        self.assertEqual((df.boundary.length/union_qgis.boundary.length).mean(),1)
 
     def test_intersection(self):
         df = overlay(self.polydf, self.polydf2, how="intersection")
@@ -71,8 +71,8 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(df) is GeoDataFrame)
         self.assertEqual(df.shape, intersect_qgis.shape)
         self.assertTrue('df2' in df.columns and 'df1' in df.columns)
-        self.assertTrue((df.area/intersect_qgis.area).mean()==1)
-        self.assertTrue((df.boundary.length/intersect_qgis.boundary.length).mean()==1)
+        self.assertEqual((df.area/intersect_qgis.area).mean(),1)
+        self.assertEqual((df.boundary.length/intersect_qgis.boundary.length).mean(),1)
 
     def test_identity(self):
         df = overlay(self.polydf, self.polydf2, how="identity")
@@ -81,8 +81,8 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(df) is GeoDataFrame)
         self.assertEqual(df.shape, ident_qgis.shape)
         self.assertTrue('df2' in df.columns and 'df1' in df.columns)
-        self.assertTrue((df.area/ident_qgis.area).mean()==1)
-        self.assertTrue((df.boundary.length/ident_qgis.boundary.length).mean()==1)
+        self.assertEqual((df.area/ident_qgis.area).mean(),1)
+        self.assertEqual((df.boundary.length/ident_qgis.boundary.length).mean(),1)
 
     def test_symmetric_difference(self):
         df = overlay(self.polydf, self.polydf2, how="symmetric_difference")
@@ -91,8 +91,8 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(df) is GeoDataFrame)
         self.assertEqual(df.shape, symdiff_qgis.shape)
         self.assertTrue('df2' in df.columns and 'df1' in df.columns)
-        self.assertTrue((df.area/symdiff_qgis.area).mean()==1)
-        self.assertTrue((df.boundary.length/symdiff_qgis.boundary.length).mean()==1)
+        self.assertEqual((df.area/symdiff_qgis.area).mean(),1)
+        self.assertEqual((df.boundary.length/symdiff_qgis.boundary.length).mean(),1)
 
     def test_difference(self):
         df = overlay(self.polydf, self.polydf2, how="difference")
@@ -101,8 +101,8 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue(type(df) is GeoDataFrame)
         self.assertEqual(df.shape, diff_qgis.shape)
         self.assertTrue('df2' not in df.columns and 'df1' in df.columns)
-        self.assertTrue((df.area/diff_qgis.area).mean()==1)
-        self.assertTrue((df.boundary.length/diff_qgis.boundary.length).mean()==1)
+        self.assertEqual((df.area/diff_qgis.area).mean(),1)
+        self.assertEqual((df.boundary.length/diff_qgis.boundary.length).mean(),1)
 
     def test_bad_how(self):
         self.assertRaises(ValueError,
