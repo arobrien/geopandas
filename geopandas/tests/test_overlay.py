@@ -97,7 +97,6 @@ class TestDataFrame(unittest.TestCase):
         self.assertTrue('value1' in df.columns and 'Shape_Area' in df.columns)
         self.assertEqual((df.area/ident_qgis.area).mean(),1)
         self.assertEqual((df.boundary.length/ident_qgis.boundary.length).mean(),1)
-        self.assertEqual(1,2)
 
     def test_symmetric_difference(self):
         df = overlay(self.polydf, self.polydf2, how="symmetric_difference")
