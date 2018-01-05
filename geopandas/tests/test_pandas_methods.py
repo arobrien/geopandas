@@ -96,7 +96,6 @@ def test_reindex(s, df):
 
 
 @pytest.mark.cython
-@pytest.mark.xfail(reason="GEOPANDAS-CYTHON not supported")
 def test_assignment(s, df):
     exp = GeoSeries([Point(10, 10), Point(1, 1), Point(2, 2)])
 
@@ -117,7 +116,7 @@ def test_assignment(s, df):
     assert_geoseries_equal(df2['geometry'], exp)
 
     df2 = df.copy()
-    df2.iloc[0, 0] = Point(10, 10)
+    df2.iloc[0, 2] = Point(10, 10)
     assert_geoseries_equal(df2['geometry'], exp)
 
 

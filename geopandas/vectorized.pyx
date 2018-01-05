@@ -81,7 +81,26 @@ cdef get_element(np.ndarray[np.uintp_t, ndim=1, cast=True] geoms, int idx):
             geom = GEOSGeom_clone_r(handle, geom)  # create a copy rather than deal with gc
 
     return geom_factory(<np.uintp_t> geom)
-
+    
+cdef set_element(np.ndarray[np.uintp_t, ndim=1, cast=True] geoms, int idx, object g):
+    """
+    Set a single element in a GeometryArray to a Shapely object.
+    
+    Will allocate a bigger array if necessary.
+    Copy the geos object, rather than deal with garbage collection.
+    """
+    with get_geos_handle() as handle:
+        if g is not None and not (isinstance(g, float) and np.isnan(g)):
+            try:
+                geos_geom = <np.uintp_t> g.__geom__
+            except AttributeError:
+                msg = ("Members of GeoSeries must be shapely geometries. "
+                       "Got %s" % str(g))
+                raise TypeError(msg)
+            geom = GEOSGeom_clone_r(handle, <GEOSGeometry *> geos_geom)  # create a copy rather than deal with gc
+            geoms[idx] = <np.uintp_t> geom
+        else:
+            geoms[idx] = 0
 
 cpdef to_shapely(np.ndarray[np.uintp_t, ndim=1, cast=True] geoms):
     """ Convert array of pointers to an array of shapely objects """
@@ -1151,6 +1170,20 @@ class GeometryArray(object):
             return get_element(self.data, idx)
         elif isinstance(idx, (collections.Iterable, slice)):
             return GeometryArray(self.data[idx], base=self)
+        else:
+            raise TypeError("Index type not supported", idx)
+            
+    def __setitem__(self, idx, value):
+        if isinstance(idx, collections.Iterable) and len(idx) == 1:
+            idx = idx[0]
+        if isinstance(idx, numbers.Integral):
+            if isinstance(value, collections.Iterable) and len(value) == 1:
+                value = value[0]
+            if not isinstance(value, BaseGeometry):
+                raise TypeError('Must be BaseGeometry', value)
+            set_element(self.data, idx, value)
+        elif isinstance(idx, (collections.Iterable, slice)):
+            raise TypeError('Not yet for iter or slice', value)
         else:
             raise TypeError("Index type not supported", idx)
 

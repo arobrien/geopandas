@@ -4,6 +4,8 @@ import numpy as np
 
 from pandas.core.internals import Block, NonConsolidatableMixIn
 from pandas.core.common import is_null_slice
+from pandas.core.dtypes.inference import is_list_like
+from pandas.core.indexing import length_of_indexer
 from shapely.geometry.base import geom_factory, BaseGeometry
 
 from .vectorized import GeometryArray, to_shapely, concat
@@ -65,8 +67,106 @@ class GeometryBlock(NonConsolidatableMixIn, Block):
         print("I am densified ({} elements)".format(len(self)))
         return self.values.to_dense().view()
 
-    def _getitem(self, key):
-        values = self.values[key]
+    def _getitem(self, indexer):
+        values = self.values[indexer]
+        return GeometryBlock(values, placement=slice(0, len(values), 1),
+                             ndim=1)
+
+    def setitem(self, indexer, value, mgr=None):
+        # Overrides Block.setitem() in pandas/core/internals.py
+        # The majority of this code is copied from there.
+        #
+        # the problem with the overridden method are:
+        # - Shapely shapes imitate arrays <- pandas should implement special protection logic like they do for strings and arrays in is_list_like()
+        # - np.array(geoms) will (except for Polygons) create an array of the coordinates <- pandas should fix this by using np.array(value,dtype='object')
+        # - make_block() returns a generic ObjectBlock
+
+        values = self.values
+
+        # check whether we have a geometry
+        if isinstance(value, BaseGeometry):
+            # dtype='object' protects Shapely objects from coordinate extraction
+            arr_value = np.array([value],dtype='object',copy=False)
+            single_value = True
+        elif is_list_like(value):
+            l = len(value)
+            for i in range(l):
+                if not isinstance(value[i], BaseGeometry):
+                    raise TypeError("Element {} of values is not a geometry".format(value[i]))
+            # dtype='object' protects Shapely objects from coordinate extraction
+            arr_value = np.array(value,dtype='object',copy=False)
+            single_value = False
+        else:
+            raise TypeError('Can only store Shapely geometry, not {}'.format(value))
+
+        l = len(values)
+
+        # length checking
+        # boolean with truth values == len of the value is ok too
+        if isinstance(indexer, (np.ndarray, list)):
+            if not single_value and len(indexer) != len(value):
+                if not (isinstance(indexer, np.ndarray) and
+                        indexer.dtype == np.bool_ and
+                        len(indexer[indexer]) == len(value)):
+                    raise ValueError("cannot set using a list-like indexer "
+                                     "with a different length than the value")
+
+        # slice
+        elif isinstance(indexer, slice):
+
+            if not single_value and l:
+                if len(value) != length_of_indexer(indexer, values):
+                    raise ValueError("cannot set using a slice indexer with a "
+                                     "different length than the value")
+
+        def _is_scalar_indexer(indexer):
+            # return True if we are all scalar indexers
+
+            if arr_value.ndim == 1:
+                if not isinstance(indexer, tuple):
+                    indexer = tuple([indexer])
+                    return any(isinstance(idx, np.ndarray) and len(idx) == 0
+                               for idx in indexer)
+            return False
+
+        def _is_empty_indexer(indexer):
+            # return a boolean if we have an empty indexer
+
+            if is_list_like(indexer) and not len(indexer):
+                return True
+            if arr_value.ndim == 1:
+                if not isinstance(indexer, tuple):
+                    indexer = tuple([indexer])
+                return any(isinstance(idx, np.ndarray) and len(idx) == 0
+                           for idx in indexer)
+            return False
+
+        # empty indexers
+        # 8669 (empty)
+        if _is_empty_indexer(indexer):
+            pass
+
+        # setting a single element for each dim and with a rhs that could
+        # be say a list
+        # GH 6043
+        elif _is_scalar_indexer(indexer):
+            values[indexer] = value
+
+        # if we are an exact match (ex-broadcasting),
+        # then use the resultant dtype
+        elif (len(arr_value.shape) and
+              arr_value.shape[0] == values.shape[0] and
+              np.prod(arr_value.shape) == np.prod(values.shape)):
+            values[indexer] = value
+            try:
+                values = values.astype(arr_value.dtype)
+            except ValueError:
+                pass
+
+        # set
+        else:
+            values[indexer] = value
+
         return GeometryBlock(values, placement=slice(0, len(values), 1),
                              ndim=1)
 
